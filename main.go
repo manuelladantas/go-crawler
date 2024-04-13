@@ -1,48 +1,121 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"github.com/gocolly/colly"
 )
+
+type Movie struct {
+	Name    string
+	Synopse string
+	// Rating  string
+	// Genre string
+	// Director string
+	// Producer string
+	// Writer string
+	// ReleaseDate string
+	// Runtime string
+	// Distributor string
+}
+
+const URL string = "https://www.rottentomatoes.com/"
 
 func main() {
 	crawl()
 }
 
 func crawl() {
-	var arr []string
-	count := 0
+	movies := make([]Movie, 0)
+	// count := 0
 
 	c := colly.NewCollector(
 		colly.AllowedDomains("rottentomatoes.com", "www.rottentomatoes.com"),
+		// colly.MaxDepth(3),
+		// colly.Async(true),
 	)
+	// TODO: Analisar a necessidade disso
+	// c.Limit(&colly.LimitRule{
+	// 	DomainGlob:  "*rottentomatoes.*",
+	// 	Parallelism: 2,
+	// 	Delay:       5 * time.Second,
+	// })
+
+	c.SetRequestTimeout(120 * time.Second)
+
 	infoCollector := c.Clone()
 
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("Visiting: ", r.URL.String())
 	})
 
-	c.OnHTML("span.p--small", func(h *colly.HTMLElement) {
-		name := h.Text
+	c.OnHTML("a[data-qa='discovery-media-list-item']", func(he *colly.HTMLElement) {
+		link := he.Attr("href")
+		link = he.Request.AbsoluteURL(link)
+		fmt.Println("Movie Link", link)
 
-		arr = append(arr, name)
-
-		fmt.Printf("Name: ", name)
+		infoCollector.Visit(link)
 	})
 
-	c.OnHTML("div.discovery__actions", func(e *colly.HTMLElement) {
-		test := e.ChildAttr("button", "class")
-		fmt.Println(test)
-		count++
-		url := fmt.Sprintf("https://www.rottentomatoes.com/browse/movies_in_theaters/?page=%v ", count)
-		fmt.Println(count)
-		c.Visit(url)
-	})
+	// c.OnHTML("div.discovery__actions", func(e *colly.HTMLElement) {
+	// 	test := e.ChildAttr("button", "class")
+	// 	fmt.Println(test)
+	// 	count++
+	// 	url := fmt.Sprintf("%sbrowse/movies_in_theaters/?page=%v ", URL, count)
+	// 	fmt.Println(count)
+	// 	c.Visit(url)
+	// })
+
+	// c.OnHTML("")
 
 	infoCollector.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting Profile URL: ", r.URL.String())
+		fmt.Println("Visiting Movie URL: ", r.URL.String())
 	})
 
-	c.Visit("https://www.rottentomatoes.com/browse/movies_in_theaters/")
+	infoCollector.OnError(func(r *colly.Response, e error) {
+		fmt.Println("Got this error:", e)
+	})
+
+	infoCollector.OnHTML("#main", func(e *colly.HTMLElement) {
+		movie := Movie{}
+
+		movie.Name = e.ChildText("#scoreboard > h1")
+		movie.Synopse = e.ChildText("#movie-info > div > div > drawer-more > p")
+
+		// TODO: O selector talvez esteja errado. Da uma olhada
+		// e.ForEach("#info", func(i int, h *colly.HTMLElement) {
+		// 	if h.ChildText("p > b") == "Rating" {
+		// 		movie.Rating = h.ChildText("p > span")
+		// 	}
+		// })
+
+		movies = append(movies, movie)
+	})
+
+	c.OnResponse(func(r *colly.Response) {
+	})
+
+	c.OnError(func(r *colly.Response, e error) {
+		fmt.Println("Got this error:", e)
+	})
+
+	c.OnScraped(func(r *colly.Response) {
+		fmt.Println("Finished", r.Request.URL)
+		js, err := json.MarshalIndent(movies, "", "    ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Writing data to file")
+		if err := os.WriteFile("movies.json", js, 0664); err == nil {
+			fmt.Println("Data written to file successfully")
+		}
+
+	})
+	c.Visit("https://www.rottentomatoes.com/browse/movies_at_home/")
+	// c.Wait()
+	// infoCollector.Wait()
 }
