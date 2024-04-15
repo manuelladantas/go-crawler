@@ -11,16 +11,16 @@ import (
 )
 
 type Movie struct {
-	Name    string
-	Synopse string
-	// Rating  string
-	// Genre string
-	// Director string
-	// Producer string
-	// Writer string
-	// ReleaseDate string
-	// Runtime string
-	// Distributor string
+	Name        string
+	Synopse     string
+	Rating      string
+	Genre       string
+	Director    string
+	Producer    string
+	Writer      string
+	ReleaseDate string
+	Runtime     string
+	Distributor string
 }
 
 const URL string = "https://www.rottentomatoes.com/"
@@ -86,12 +86,24 @@ func crawl() {
 		movie.Name = e.ChildText("#scoreboard > h1")
 		movie.Synopse = e.ChildText("#movie-info > div > div > drawer-more > p")
 
-		// TODO: O selector talvez esteja errado. Da uma olhada
-		// e.ForEach("#info", func(i int, h *colly.HTMLElement) {
-		// 	if h.ChildText("p > b") == "Rating" {
-		// 		movie.Rating = h.ChildText("p > span")
-		// 	}
-		// })
+		infoMap := map[string]*string{
+			"Distributor:":              &movie.Distributor,
+			"Rating:":                   &movie.Rating,
+			"Director:":                 &movie.Director,
+			"Producer:":                 &movie.Producer,
+			"Writer:":                   &movie.Writer,
+			"Release Date (Streaming):": &movie.ReleaseDate,
+			"Runtime:":                  &movie.Runtime,
+		}
+
+		e.ForEach("#info > li", func(_ int, h *colly.HTMLElement) {
+			label := h.ChildText("p > b")
+			value := h.ChildText("p > span")
+
+			if fieldPointer, ok := infoMap[label]; ok {
+				*fieldPointer = value
+			}
+		})
 
 		movies = append(movies, movie)
 	})
