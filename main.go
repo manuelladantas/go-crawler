@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/gocolly/colly"
 )
@@ -23,7 +23,7 @@ type Movie struct {
 	Distributor string
 }
 
-const URL string = "https://www.rottentomatoes.com/"
+const CARD_SELECTOR string = "#main-page-content > div.discovery > div.discovery-grids-container > div > div.discovery-tiles__wrap > div > div > tile-dynamic > a[href]"
 
 func main() {
 	crawl()
@@ -36,6 +36,7 @@ func crawl() {
 	c := colly.NewCollector(
 		colly.AllowedDomains("rottentomatoes.com", "www.rottentomatoes.com"),
 		// colly.MaxDepth(3),
+		colly.MaxBodySize(0),
 		// colly.Async(true),
 	)
 	// TODO: Analisar a necessidade disso
@@ -45,7 +46,7 @@ func crawl() {
 	// 	Delay:       5 * time.Second,
 	// })
 
-	c.SetRequestTimeout(120 * time.Second)
+	// c.SetRequestTimeout(120 * time.Second)
 
 	infoCollector := c.Clone()
 
@@ -53,7 +54,7 @@ func crawl() {
 		fmt.Println("Visiting: ", r.URL.String())
 	})
 
-	c.OnHTML("a[data-qa='discovery-media-list-item']", func(he *colly.HTMLElement) {
+	c.OnHTML(CARD_SELECTOR, func(he *colly.HTMLElement) {
 		link := he.Attr("href")
 		link = he.Request.AbsoluteURL(link)
 		fmt.Println("Movie Link", link)
@@ -101,7 +102,7 @@ func crawl() {
 			value := h.ChildText("p > span")
 
 			if fieldPointer, ok := infoMap[label]; ok {
-				*fieldPointer = value
+				*fieldPointer = strings.ReplaceAll(value, "\n", "")
 			}
 		})
 
