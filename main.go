@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gocolly/colly"
+	"github.com/manuelladantas/go-crawler/database"
 )
 
 type Movie struct {
@@ -26,7 +27,9 @@ type Movie struct {
 const CARD_SELECTOR string = "#main-page-content > div.discovery > div.discovery-grids-container > div > div.discovery-tiles__wrap > div > div > tile-dynamic > a[href]"
 
 func main() {
-	crawl()
+	database.Ping()
+	database.Disconnect()
+	// crawl()
 }
 
 func crawl() {
